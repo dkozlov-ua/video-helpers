@@ -25,9 +25,11 @@ class Chat(models.Model):
 
 
 class TaskMessage(models.Model):
+    id = models.UUIDField(primary_key=True)
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     message_id = models.BigIntegerField()
-    reply_message_id = models.BigIntegerField(null=True)
+    status_message_id = models.BigIntegerField()
+    result_message_id = models.BigIntegerField(null=True)
 
     download_tasks_total = models.IntegerField(default=0)
     download_tasks_done = models.IntegerField(default=0)
@@ -37,8 +39,3 @@ class TaskMessage(models.Model):
     concatenate_tasks_done = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=('chat', 'message_id'), name='unique_message_constraint'),
-        ]

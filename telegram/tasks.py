@@ -1,13 +1,15 @@
-from datetime import datetime
-from typing import Literal, Optional
+from enum import Enum
+from typing import Optional
+from uuid import UUID
 
 import telebot
 from celery import shared_task
 from django.conf import settings
-from django.db import transaction
+from django.db.models import F
+from telebot.apihelper import ApiTelegramException
 
 from moviemaker.models import VideoFile
-from telegram.models import Chat, TaskMessage
+from telegram.models import TaskMessage
 
 bot = telebot.TeleBot(
     token=settings.TELEGRAM_BOT_TOKEN,
@@ -17,89 +19,79 @@ bot = telebot.TeleBot(
 
 
 @shared_task(ack_late=True, ignore_result=True)
-def reply_with_video(video: VideoFile, chat: Chat, message_id: int) -> None:
+def reply_with_video(video: VideoFile, task_message_pk: UUID) -> None:
+    task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
     with video.file.open(mode='rb') as file:
-        bot.send_video(
-            chat_id=chat.id,
-            reply_to_message_id=message_id,
+        result_message = bot.send_video(
+            chat_id=task_message.chat.id,
+            reply_to_message_id=task_message.message_id,
             video=file,
             supports_streaming=True,
             duration=video.duration,
             width=video.width,
             height=video.height,
         )
+    task_message.result_message_id = result_message.message_id
+    task_message.save(update_fields=('result_message_id',))
+    try:
+        bot.delete_message(chat_id=task_message.chat.id, message_id=task_message.status_message_id)
+    except ApiTelegramException as exc:
+        if exc.error_code != 400:
+            raise
 
 
 @shared_task(ack_late=True, ignore_result=True)
-def reply_with_error_msg(request, exc, traceback, chat: Chat, message_id: int) -> None:
+def reply_with_error_msg(request, exc, traceback, task_message_pk: UUID) -> None:
     _ = request
     _ = traceback
-    bot.send_message(
-        chat_id=chat.id,
-        reply_to_message_id=message_id,
+    task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
+    result_message = bot.send_message(
+        chat_id=task_message.chat.id,
+        reply_to_message_id=task_message.message_id,
         text=f"❗ {type(exc).__name__}: {str(exc)}"
     )
+    task_message.result_message_id = result_message.message_id
+    task_message.save(update_fields=('result_message_id',))
+    try:
+        bot.delete_message(chat_id=task_message.chat.id, message_id=task_message.status_message_id)
+    except ApiTelegramException as error:
+        if error.error_code != 400:
+            raise
+
+
+class TaskProgressEvent(Enum):
+    DOWNLOAD_TASK_FINISHED = 1
+    TRANSFORM_TASK_FINISHED = 2
+    CONCATENATE_TASK_FINISHED = 3
 
 
 @shared_task(ack_late=True, ignore_result=True)
-def update_task_progress(
-        chat: Chat,
-        message_id: int,
-        event: Optional[Literal['download', 'transform', 'concatenate', 'finished']],
-) -> None:
-    with transaction.atomic():
-        task_message: TaskMessage = (
-            TaskMessage.objects
-            .select_for_update()
-            .filter(chat=chat, message_id=message_id)
-            .select_related()
-            [0]
+def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UUID) -> None:
+    task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
+    if event is TaskProgressEvent.DOWNLOAD_TASK_FINISHED:
+        TaskMessage.objects.filter(pk=task_message.pk).update(download_tasks_done=F('download_tasks_done') + 1)
+    elif event is TaskProgressEvent.TRANSFORM_TASK_FINISHED:
+        TaskMessage.objects.filter(pk=task_message.pk).update(transform_tasks_done=F('transform_tasks_done') + 1)
+    elif event is TaskProgressEvent.CONCATENATE_TASK_FINISHED:
+        TaskMessage.objects.filter(pk=task_message.pk).update(concatenate_tasks_done=F('concatenate_tasks_done') + 1)
+    elif event is None:
+        pass
+    else:
+        raise ValueError(f"Unknown event: TaskProgressEvent = {event}")
+    task_message.refresh_from_db()
+    msg_text = '\n'.join((
+        "*Processing videos*",
+        "",
+        f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}",
+        f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}",
+        f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}",
+    ))
+    try:
+        bot.edit_message_text(
+            chat_id=task_message.chat.id,
+            message_id=task_message.status_message_id,
+            text=msg_text
         )
-
-        if event == 'finished':
-            elapsed_time_total_s = int((datetime.utcnow() - task_message.created_at).total_seconds())
-            elapsed_time_m = elapsed_time_total_s // 60
-            elapsed_time_s = elapsed_time_total_s - elapsed_time_m * 60
-            if elapsed_time_m:
-                elapsed_time_verb = f"{elapsed_time_m}m{elapsed_time_s}s"
-            else:
-                elapsed_time_verb = f"{elapsed_time_s}s"
-            msg_text = '\n'.join((
-                f"*Finished* in {elapsed_time_verb}",
-                "",
-                f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}",
-                f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}",
-                f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}",
-            ))
-        else:
-            if event == 'download':
-                task_message.download_tasks_done += 1
-                task_message.save(update_fields=('download_tasks_done',))
-            elif event == 'transform':
-                task_message.transform_tasks_done += 1
-                task_message.save(update_fields=('transform_tasks_done',))
-            elif event == 'concatenate':
-                task_message.concatenate_tasks_done += 1
-                task_message.save(update_fields=('concatenate_tasks_done',))
-            msg_text = '\n'.join((
-                "*Processing videos*",
-                "",
-                f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}",
-                f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}",
-                f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}",
-            ))
-
-        if task_message.reply_message_id is None:
-            message = bot.send_message(
-                chat_id=task_message.chat.id,
-                reply_to_message_id=task_message.message_id,
-                text=msg_text,
-            )
-            task_message.reply_message_id = message.message_id
-            task_message.save(update_fields=('reply_message_id',))
-        else:
-            bot.edit_message_text(
-                chat_id=task_message.chat.id,
-                message_id=task_message.reply_message_id,
-                text=msg_text
-            )
+    except ApiTelegramException as exc:
+        if exc.error_code != 400:
+            raise

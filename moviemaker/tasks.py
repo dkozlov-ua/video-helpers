@@ -18,7 +18,7 @@ from moviemaker.models import VideoFile
 logger = get_task_logger(__name__)
 
 
-@shared_task(ack_late=True)
+@shared_task(ack_late=True, ignore_result=True)
 def cleanup_old_videos() -> None:
     files_to_remove: List[Path] = []
 
