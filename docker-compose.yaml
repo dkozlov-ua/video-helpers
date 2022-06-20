@@ -1,0 +1,163 @@
+version: "3.9"
+
+networks:
+  default_net:
+    driver: bridge
+
+volumes:
+  postgres_data: { }
+  redis_data: { }
+
+services:
+  backend:
+    image: moviemaker:latest
+    entrypoint: ./api_entrypoint.sh
+    command:
+      - --access-logfile=-
+      - --log-level=info
+      - --bind=0.0.0.0:8000
+      - --workers=1
+      - --threads=4
+    environment:
+      DEBUG: ${DEBUG:?err}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?err}
+      SECRET_KEY: ${SECRET_KEY:?err}
+      MEDIA_ROOT: /media
+      TELEGRAM_BOT_TOKEN:
+      SENTRY_DSN:
+      SENTRY_ENVIRONMENT:
+      DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./media:/media
+      - ./backend/migrations:/usr/src/app/backend/migrations
+      - ./moviemaker/migrations:/usr/src/app/moviemaker/migrations
+      - ./telegram/migrations:/usr/src/app/telegram/migrations
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8080:8000"
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
+
+  celery_worker:
+    image: moviemaker:latest
+    entrypoint: celery --app=backend
+    command:
+      - worker
+      - --loglevel=info
+      - --concurrency=3
+      - --purge
+    environment:
+      DEBUG: ${DEBUG:?err}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?err}
+      SECRET_KEY: ${SECRET_KEY:?err}
+      MEDIA_ROOT: /media
+      TELEGRAM_BOT_ENABLED:
+      TELEGRAM_BOT_TOKEN:
+      SENTRY_DSN:
+      SENTRY_ENVIRONMENT:
+      DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      C_FORCE_ROOT: x
+    volumes:
+      - ./media:/media
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
+
+  celery_beat:
+    image: moviemaker:latest
+    entrypoint: celery --app=backend
+    command:
+      - beat
+      - --loglevel=info
+      - --scheduler=django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      DEBUG: ${DEBUG:?err}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?err}
+      SECRET_KEY: ${SECRET_KEY:?err}
+      MEDIA_ROOT: /media
+      TELEGRAM_BOT_ENABLED:
+      TELEGRAM_BOT_TOKEN:
+      SENTRY_DSN:
+      SENTRY_ENVIRONMENT:
+      DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      C_FORCE_ROOT: x
+    volumes:
+      - ./media:/media
+    depends_on:
+      - backend
+      - postgres
+      - redis
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
+
+  telegram_bot:
+    image: moviemaker:latest
+    entrypoint: python -m telegram
+    command:
+      - --loglevel=info
+    environment:
+      DEBUG: ${DEBUG:?err}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?err}
+      SECRET_KEY: ${SECRET_KEY:?err}
+      MEDIA_ROOT: /media
+      TELEGRAM_BOT_ENABLED:
+      TELEGRAM_BOT_TOKEN:
+      SENTRY_DSN:
+      SENTRY_ENVIRONMENT:
+      DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./media:/media
+    depends_on:
+      - backend
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
+
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /data
+    volumes:
+      - postgres_data:/data
+    networks:
+      - default_net
+    logging:
+      driver: none
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - default_net
+    logging:
+      driver: none

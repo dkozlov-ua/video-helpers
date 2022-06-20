@@ -1,0 +1,9 @@
+.Dockerignore
+.git
+.gitignore
+.idea
+.mypy_cache
+docker-compose.*
+dev.sh
+manage.sh
+media/
