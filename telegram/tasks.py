@@ -21,7 +21,7 @@ bot = telebot.TeleBot(
 VideoId = NewType('VideoId', str)
 
 
-@shared_task(ack_late=True, ignore_result=True)
+@shared_task(acks_late=True, ignore_result=True)
 def reply_with_video(video_id: VideoId, task_message_pk: UUID) -> None:
     task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
     video: VideoFile = VideoFile.objects.get(id=video_id)
@@ -44,7 +44,7 @@ def reply_with_video(video_id: VideoId, task_message_pk: UUID) -> None:
             raise
 
 
-@shared_task(ack_late=True, ignore_result=True)
+@shared_task(acks_late=True, ignore_result=True)
 def reply_with_error_msg(request, exc, traceback, task_message_pk: UUID) -> None:
     _ = request
     _ = traceback
@@ -69,9 +69,15 @@ class TaskProgressEvent(Enum):
     CONCATENATE_TASK_FINISHED = 3
 
 
-@shared_task(ack_late=True, ignore_result=True)
-def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UUID) -> None:
+@shared_task(acks_late=True, ignore_result=True)
+def update_task_progress(event_id: Optional[int], task_message_pk: UUID) -> None:
     task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
+
+    if event_id is None:
+        event = None
+    else:
+        event = TaskProgressEvent(event_id)
+
     if event is TaskProgressEvent.DOWNLOAD_TASK_FINISHED:
         TaskMessage.objects.filter(pk=task_message.pk).update(download_tasks_done=F('download_tasks_done') + 1)
     elif event is TaskProgressEvent.TRANSFORM_TASK_FINISHED:
@@ -82,6 +88,7 @@ def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UU
         pass
     else:
         raise ValueError(f"Unknown event: TaskProgressEvent = {event}")
+
     task_message.refresh_from_db()
     msg_text = '\n'.join((
         "*Processing videos*",

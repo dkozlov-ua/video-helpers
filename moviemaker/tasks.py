@@ -21,7 +21,7 @@ logger = get_task_logger(__name__)
 VideoId = NewType('VideoId', str)
 
 
-@shared_task(ack_late=True, ignore_result=True)
+@shared_task(acks_late=True, ignore_result=True)
 def cleanup_old_videos() -> None:
     files_to_remove: List[Path] = []
 
@@ -44,7 +44,7 @@ def cleanup_old_videos() -> None:
 
 
 @shared_task(
-    ack_late=True,
+    acks_late=True,
     autoretry_for=(DownloadError,),
     retry_backoff=5,
     default_retry_delay=3.0,
@@ -92,7 +92,7 @@ def download_youtube_video(youtube_video_id: str) -> VideoId:
     return VideoId(target_video.id)
 
 
-@shared_task(ack_late=True)
+@shared_task(acks_late=True)
 def transform_video(
         src_video_id: VideoId,
         cut_from_ms: Optional[int] = None,
@@ -145,7 +145,7 @@ def transform_video(
     return VideoId(target_video.id)
 
 
-@shared_task(ack_late=True)
+@shared_task(acks_late=True)
 def concatenate_videos(src_video_ids: List[VideoId]) -> VideoId:
     src_videos: List[VideoFile] = []
     for src_video_id in src_video_ids:

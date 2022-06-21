@@ -94,11 +94,11 @@ def _cmd_default(message: Message) -> None:
             chain(
                 download_youtube_video.signature(
                     args=(video_id,),
-                    link=update_task_progress.si(TaskProgressEvent.DOWNLOAD_TASK_FINISHED, task_message_id),
+                    link=update_task_progress.si(TaskProgressEvent.DOWNLOAD_TASK_FINISHED.value, task_message_id),
                 ),
                 transform_video.signature(
                     args=(cut_from_ms, cut_to_ms,),
-                    link=update_task_progress.si(TaskProgressEvent.TRANSFORM_TASK_FINISHED, task_message_id),
+                    link=update_task_progress.si(TaskProgressEvent.TRANSFORM_TASK_FINISHED.value, task_message_id),
                 ),
             ),
         )
@@ -122,7 +122,7 @@ def _cmd_default(message: Message) -> None:
         body=chain(
             concatenate_videos.signature(
                 args=(),
-                link=update_task_progress.si(TaskProgressEvent.CONCATENATE_TASK_FINISHED, task_message_id),
+                link=update_task_progress.si(TaskProgressEvent.CONCATENATE_TASK_FINISHED.value, task_message_id),
             ),
             reply_with_video.signature(
                 args=(task_message_id,),
