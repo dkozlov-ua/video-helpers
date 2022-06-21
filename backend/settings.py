@@ -133,6 +133,7 @@ CELERY_RESULT_SERIALIZER = 'pickle'
 CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle']
 CELERY_IGNORE_RESULT = False
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_BEAT_SCHEDULE = {
     'cleanup-old-videos': {
         'task': 'moviemaker.tasks.cleanup_old_videos',
