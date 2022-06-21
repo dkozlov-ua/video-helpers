@@ -7,6 +7,8 @@ networks:
 volumes:
   postgres_data: { }
   redis_data: { }
+  rabbitmq_data: { }
+  flower_data: { }
 
 services:
   backend:
@@ -28,7 +30,7 @@ services:
       SENTRY_DSN:
       SENTRY_ENVIRONMENT:
       DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
-      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
       - ./media:/media
@@ -53,7 +55,6 @@ services:
       - worker
       - --loglevel=info
       - --concurrency=3
-      - --purge
     environment:
       DEBUG: ${DEBUG:?err}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
@@ -65,7 +66,7 @@ services:
       SENTRY_DSN:
       SENTRY_ENVIRONMENT:
       DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
-      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       C_FORCE_ROOT: x
     volumes:
@@ -97,7 +98,7 @@ services:
       SENTRY_DSN:
       SENTRY_ENVIRONMENT:
       DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
-      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       C_FORCE_ROOT: x
     volumes:
@@ -128,7 +129,7 @@ services:
       SENTRY_DSN:
       SENTRY_ENVIRONMENT:
       DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
-      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
       - ./media:/media
@@ -155,9 +156,45 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --appendonly yes --appendfsync always
     volumes:
       - redis_data:/data
     networks:
       - default_net
     logging:
       driver: none
+      
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - default_net
+    logging:
+      driver: none
+
+  flower:
+    image: mher/flower
+    restart: always
+    environment:
+      FLOWER_PORT: 8888
+      FLOWER_BROKER_API: http://user:password@rabbitmq:15672/api/
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - flower_data:/data
+    depends_on:
+      - redis
+      - celery_beat
+      - celery_worker
+    ports:
+      - "8888:8888"
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
