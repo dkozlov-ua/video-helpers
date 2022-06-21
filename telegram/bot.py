@@ -31,10 +31,11 @@ def _cmd_start(message: Message) -> None:
         '*Combine multiple videos*:`',
         'https://www.youtube.com/shorts/k2YGTSCT0q0 from 00:15.250 to 00:30',
         'https://www.youtube.com/watch?v=CRTjZTwIyI0 to 00:42',
-        'https://www.youtube.com/shorts/\\_Ptnlp9QKgw`',
-        '',
-        '*Cut a fragment from a video*:',
-        '`https://www.youtube.com/shorts/\\_Ptnlp9QKgw from 00:15 to 00:20`',
+        'https://www.youtube.com/shorts/_Ptnlp9QKgw',
+        '`',
+        '*Cut a fragment from a video*:`',
+        'https://www.youtube.com/shorts/_Ptnlp9QKgw from 00:15 to 00:20'
+        '`',
     )
     bot.reply_to(
         message=message,
