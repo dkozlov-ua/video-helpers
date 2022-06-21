@@ -1,8 +1,8 @@
 import tempfile
-import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List
+from uuid import uuid4
 
 import youtube_dl
 from celery import shared_task
@@ -61,9 +61,10 @@ def download_youtube_video(video_id: str) -> VideoFile:
     logger.info(f"Download video {video_id}: started")
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
+        video_file_name = str(uuid4())
         with youtube_dl.YoutubeDL(dict(
                 format=settings.YOUTUBE_VIDEO_FORMAT,
-                outtmpl=str(tmp_dir_path / f"{video_id}.%(ext)s"),
+                outtmpl=str(tmp_dir_path / f"{video_file_name}.%(ext)s"),
                 ratelimit=None,
                 quiet=True,
                 noprogress=True,
@@ -71,7 +72,7 @@ def download_youtube_video(video_id: str) -> VideoFile:
         )) as ydl:
             ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
         logger.debug(f"Download video {video_id}: saving")
-        video_file_path = list(tmp_dir_path.glob(f"{video_id}.*"))[0]
+        video_file_path = list(tmp_dir_path.glob(f"{video_file_name}.*"))[0]
         with VideoFileClip(filename=str(video_file_path)) as clip:
             video_duration = clip.duration
             video_width, video_height = clip.size
@@ -99,7 +100,7 @@ def transform_video(src_video: VideoFile, cut_from_ms: Optional[int] = None, cut
     if cut_from_ms is None:
         cut_from_ms = 0
 
-    video_id = str(uuid.uuid4())
+    video_id = str(uuid4())
 
     logger.info(f"Transform video {src_video.id}: started")
     with VideoFileClip(filename=src_video.file.path) as clip:
@@ -109,8 +110,12 @@ def transform_video(src_video: VideoFile, cut_from_ms: Optional[int] = None, cut
             clip = clip.subclip(cut_from_ms / 1000)
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_dir_path = Path(tmp_dir)
-            video_file_path = tmp_dir_path / f"{video_id}.{settings.VIDEO_OUTPUT_FORMAT}"
-            clip.write_videofile(filename=str(video_file_path), logger=None, **settings.VIDEO_ENCODER_SETTINGS)
+            video_file_path = tmp_dir_path / f"{video_id}.{settings.VIDEO_TEMP_OUTPUT_FORMAT}"
+            clip.write_videofile(
+                filename=str(video_file_path),
+                logger=None,
+                **settings.VIDEO_TEMP_ENCODER_SETTINGS,
+            )
             logger.debug(f"Transform video {src_video.id}: saving")
             with video_file_path.open(mode='rb') as file:
                 new_video = VideoFile(
@@ -134,7 +139,7 @@ def concatenate_videos(src_videos: List[VideoFile]) -> VideoFile:
         return src_videos[0]
     src_videos_verb = '[' + ', '.join(video.id for video in src_videos) + ']'
 
-    video_id = str(uuid.uuid4())
+    video_id = str(uuid4())
 
     logger.info(f"Concatenate videos {src_videos_verb} ({len(src_videos)}): started")
     clips = [VideoFileClip(filename=video.file.path) for video in src_videos]
@@ -142,8 +147,12 @@ def concatenate_videos(src_videos: List[VideoFile]) -> VideoFile:
         with concatenate_videoclips(clips) as clip:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 tmp_dir_path = Path(tmp_dir)
-                video_file_path = tmp_dir_path / f"{video_id}.{settings.VIDEO_OUTPUT_FORMAT}"
-                clip.write_videofile(filename=str(video_file_path), logger=None, **settings.VIDEO_ENCODER_SETTINGS)
+                video_file_path = tmp_dir_path / f"{video_id}.{settings.VIDEO_FINAL_OUTPUT_FORMAT}"
+                clip.write_videofile(
+                    filename=str(video_file_path),
+                    logger=None,
+                    **settings.VIDEO_FINAL_ENCODER_SETTINGS,
+                )
                 logger.debug(f"Concatenate videos {src_videos_verb} ({len(src_videos)}): saving")
                 with video_file_path.open(mode='rb') as file:
                     new_video = VideoFile(
