@@ -87,7 +87,7 @@ def _cmd_default(message: Message) -> None:
                 cut_to_ms = None
 
         except ValueError as exc:
-            bot.reply_to(message, f"❗ Video #{video_n}: {str(exc)}")
+            bot.reply_to(message, f"❗ `Video #{video_n}: {str(exc)}`")
             return
 
         prepare_video_tasks.append(

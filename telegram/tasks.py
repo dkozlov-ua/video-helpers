@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, NewType
 from uuid import UUID
 
 import telebot
@@ -18,9 +18,13 @@ bot = telebot.TeleBot(
 )
 
 
+VideoId = NewType('VideoId', str)
+
+
 @shared_task(ack_late=True, ignore_result=True)
-def reply_with_video(video: VideoFile, task_message_pk: UUID) -> None:
+def reply_with_video(video_id: VideoId, task_message_pk: UUID) -> None:
     task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
+    video: VideoFile = VideoFile.objects.get(id=video_id)
     with video.file.open(mode='rb') as file:
         result_message = bot.send_video(
             chat_id=task_message.chat.id,
@@ -48,7 +52,7 @@ def reply_with_error_msg(request, exc, traceback, task_message_pk: UUID) -> None
     result_message = bot.send_message(
         chat_id=task_message.chat.id,
         reply_to_message_id=task_message.message_id,
-        text=f"❗ {type(exc).__name__}: {str(exc)}"
+        text=f"❗ `{type(exc).__name__}: {str(exc)}`"
     )
     task_message.result_message_id = result_message.message_id
     task_message.save(update_fields=('result_message_id',))
