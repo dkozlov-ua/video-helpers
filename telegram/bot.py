@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytimeparse
 import telebot
-from celery.canvas import Signature, group, chain
+from celery.canvas import Signature, chain, chord
 from django.conf import settings
 from telebot.types import Message
 
@@ -95,15 +95,17 @@ def _cmd_default(message: Message) -> None:
     task_message.save()
     update_task_progress(None, task_message_id)
 
-    complete_task = chain(
-        group(*prepare_video_tasks),
-        concatenate_videos.signature(
-            args=(),
-            link=update_task_progress.si(TaskProgressEvent.CONCATENATE_TASK_FINISHED, task_message_id),
-        ),
-        reply_with_video.signature(
-            args=(task_message_id,),
-            link=None,
+    complete_task = chord(
+        header=prepare_video_tasks,
+        body=chain(
+            concatenate_videos.signature(
+                args=(),
+                link=update_task_progress.si(TaskProgressEvent.CONCATENATE_TASK_FINISHED, task_message_id),
+            ),
+            reply_with_video.signature(
+                args=(task_message_id,),
+                link=None,
+            ),
         ),
     )
     complete_task.link_error(reply_with_error_msg.s(task_message_id))
