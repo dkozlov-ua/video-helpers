@@ -22,6 +22,27 @@ bot = telebot.TeleBot(
 logger = logging.getLogger(__name__)
 
 
+@bot.message_handler(commands=['start', 'help'])
+def _cmd_start(message: Message) -> None:
+    Chat.update_from_message(message)
+    msg_text_lines = (
+        'Send me a few links to Youtube videos in a single message to combine them into one video.',
+        '',
+        '*Combine multiple videos*:`',
+        'https://www.youtube.com/shorts/k2YGTSCT0q0 from 00:15.250 to 00:30',
+        'https://www.youtube.com/watch?v=CRTjZTwIyI0 to 00:42',
+        'https://www.youtube.com/shorts/\\_Ptnlp9QKgw`',
+        '',
+        '*Cut a fragment from a video*:',
+        '`https://www.youtube.com/shorts/\\_Ptnlp9QKgw from 00:15 to 00:20`',
+    )
+    bot.reply_to(
+        message=message,
+        text='\n'.join(msg_text_lines),
+        disable_web_page_preview=True,
+    )
+
+
 @bot.message_handler()
 def _cmd_default(message: Message) -> None:
     chat = Chat.update_from_message(message)
@@ -81,7 +102,7 @@ def _cmd_default(message: Message) -> None:
             ),
         )
 
-    status_message = bot.reply_to(message, '*Starting...*')
+    status_message = bot.reply_to(message, '*Starting...*', disable_notification=True)
     task_message = TaskMessage(
         id=task_message_id,
         chat=chat,
