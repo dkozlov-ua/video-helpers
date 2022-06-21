@@ -1,4 +1,4 @@
-celery[redis]
+celery
 click
 django>=4.0
 django-grappelli
