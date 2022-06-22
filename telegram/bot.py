@@ -93,12 +93,23 @@ def _cmd_default(message: Message) -> None:
         prepare_video_tasks.append(
             chain(
                 download_youtube_video.signature(
-                    args=(video_id,),
-                    link=update_task_progress.si(TaskProgressEvent.DOWNLOAD_TASK_FINISHED.value, task_message_id),
+                    kwargs=dict(
+                        youtube_video_id=video_id,
+                    ),
+                    link=update_task_progress.si(
+                        event=TaskProgressEvent.DOWNLOAD_TASK_FINISHED,
+                        task_message_pk=task_message_id,
+                    ),
                 ),
                 transform_video.signature(
-                    args=(cut_from_ms, cut_to_ms,),
-                    link=update_task_progress.si(TaskProgressEvent.TRANSFORM_TASK_FINISHED.value, task_message_id),
+                    kwargs=dict(
+                        cut_from_ms=cut_from_ms,
+                        cut_to_ms=cut_to_ms,
+                    ),
+                    link=update_task_progress.si(
+                        event=TaskProgressEvent.TRANSFORM_TASK_FINISHED,
+                        task_message_pk=task_message_id,
+                    ),
                 ),
             ),
         )
@@ -121,13 +132,18 @@ def _cmd_default(message: Message) -> None:
         header=prepare_video_tasks,
         body=chain(
             concatenate_videos.signature(
-                args=(),
-                link=update_task_progress.si(TaskProgressEvent.CONCATENATE_TASK_FINISHED.value, task_message_id),
+                kwargs=dict(),
+                link=update_task_progress.si(
+                    event=TaskProgressEvent.CONCATENATE_TASK_FINISHED,
+                    task_message_pk=task_message_id,
+                ),
             ),
             reply_with_video.signature(
-                args=(task_message_id,),
+                kwargs=dict(
+                    task_message_pk=task_message_id,
+                ),
                 link=None,
-            ),
+            )
         ),
     )
     complete_task.link_error(reply_with_error_msg.s(task_message_id))

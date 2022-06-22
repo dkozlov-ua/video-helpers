@@ -70,14 +70,8 @@ class TaskProgressEvent(Enum):
 
 
 @shared_task(acks_late=True, ignore_result=True)
-def update_task_progress(event_id: Optional[int], task_message_pk: UUID) -> None:
+def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UUID) -> None:
     task_message: TaskMessage = TaskMessage.objects.select_related().get(pk=task_message_pk)
-
-    if event_id is None:
-        event = None
-    else:
-        event = TaskProgressEvent(event_id)
-
     if event is TaskProgressEvent.DOWNLOAD_TASK_FINISHED:
         TaskMessage.objects.filter(pk=task_message.pk).update(download_tasks_done=F('download_tasks_done') + 1)
     elif event is TaskProgressEvent.TRANSFORM_TASK_FINISHED:
