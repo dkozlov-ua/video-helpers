@@ -176,25 +176,3 @@ services:
       - default_net
     logging:
       driver: none
-
-  flower:
-    image: mher/flower
-    restart: always
-    environment:
-      FLOWER_PORT: 8888
-      FLOWER_BROKER_API: http://user:password@rabbitmq:15672/api/
-      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-    volumes:
-      - flower_data:/data
-    depends_on:
-      - redis
-      - celery_beat
-      - celery_worker
-    ports:
-      - "8888:8888"
-    networks:
-      - default_net
-    logging:
-      options:
-        max-size: 1m
