@@ -132,7 +132,6 @@ def _cmd_default(message: Message) -> None:
         header=prepare_video_tasks,
         body=chain(
             concatenate_videos.signature(
-                kwargs=dict(),
                 link=update_task_progress.si(
                     event=TaskProgressEvent.CONCATENATE_TASK_FINISHED,
                     task_message_pk=task_message_id,
@@ -142,7 +141,6 @@ def _cmd_default(message: Message) -> None:
                 kwargs=dict(
                     task_message_pk=task_message_id,
                 ),
-                link=None,
             )
         ),
     )
