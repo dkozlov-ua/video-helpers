@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, NewType
 
+import requests
 import youtube_dl
 from celery import shared_task
 from celery.utils.log import get_task_logger
@@ -51,7 +52,7 @@ def cleanup_old_videos() -> None:
     max_retries=5,
     rate_limit=settings.YOUTUBE_RATE_LIMIT,
 )
-def download_youtube_video(youtube_video_id: str) -> VideoId:
+def download_video_from_youtube(youtube_video_id: str) -> VideoId:
     target_video_id = hashed(youtube_video_id)[:32]
     try:
         target_video: VideoFile = VideoFile.objects.get(id=target_video_id)
@@ -65,6 +66,7 @@ def download_youtube_video(youtube_video_id: str) -> VideoId:
     logger.info(f"Download video {youtube_video_id}: started")
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_dir_path = Path(tmp_dir)
+
         with youtube_dl.YoutubeDL(dict(
                 format=settings.YOUTUBE_VIDEO_FORMAT,
                 outtmpl=str(tmp_dir_path / f"{target_video_id}.%(ext)s"),
@@ -74,11 +76,14 @@ def download_youtube_video(youtube_video_id: str) -> VideoId:
                 logger=logger,
         )) as ydl:
             ydl.download([f"https://www.youtube.com/watch?v={youtube_video_id}"])
-        logger.debug(f"Download video {youtube_video_id}: saving")
         video_file_path = list(tmp_dir_path.glob(f"{target_video_id}.*"))[0]
+
+        logger.debug(f"Download video {youtube_video_id}: saving")
+
         with VideoFileClip(filename=str(video_file_path)) as clip:
             video_duration = clip.duration
             video_width, video_height = clip.size
+
         with video_file_path.open(mode='rb') as file:
             target_video = VideoFile(
                 id=target_video_id,
@@ -89,6 +94,56 @@ def download_youtube_video(youtube_video_id: str) -> VideoId:
             )
             target_video.save()
     logger.info(f"Download video {youtube_video_id}: finished")
+    return VideoId(target_video.id)
+
+
+@shared_task(
+    acks_late=True,
+    autoretry_for=(requests.ConnectionError,),
+    retry_backoff=5,
+    default_retry_delay=3.0,
+    max_retries=5,
+)
+def download_video_from_link(url: str, video_id: Optional[str] = None) -> VideoId:
+    target_video_id = hashed(video_id or url)[:32]
+    try:
+        target_video: VideoFile = VideoFile.objects.get(id=target_video_id)
+    except VideoFile.DoesNotExist:
+        pass
+    else:
+        target_video.save(update_fields=('last_used_at',))
+        logger.debug(f"Download video {target_video_id}: found in cache")
+        return VideoId(target_video.id)
+
+    logger.info(f"Download video {target_video_id}: started")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        video_file_ext = url.split('?')[0].split('.')[-1]
+        video_file_name = f"{target_video_id}.{video_file_ext}"
+        video_file_path = tmp_dir_path / video_file_name
+
+        resp = requests.get(url, stream=True, timeout=(3.05, 27))
+        resp.raise_for_status()
+        with open(video_file_path, mode='wb') as file:
+            for chunk in resp.iter_content():
+                file.write(chunk)
+
+        logger.debug(f"Download video {target_video_id}: saving")
+
+        with VideoFileClip(filename=str(video_file_path)) as clip:
+            video_duration = clip.duration
+            video_width, video_height = clip.size
+
+        with video_file_path.open(mode='rb') as file:
+            target_video = VideoFile(
+                id=target_video_id,
+                duration=video_duration,
+                width=video_width,
+                height=video_height,
+                file=File(file, name=video_file_path.parts[-1]),
+            )
+            target_video.save()
+    logger.info(f"Download video {target_video_id}: finished")
     return VideoId(target_video.id)
 
 

@@ -95,7 +95,7 @@ def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UU
         bot.edit_message_text(
             chat_id=task_message.chat.id,
             message_id=task_message.status_message_id,
-            text=msg_text
+            text=msg_text,
         )
     except ApiTelegramException as exc:
         if exc.error_code != 400:

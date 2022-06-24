@@ -13,6 +13,8 @@ pylint
 pylint-django
 pyTelegramBotAPI
 pytimeparse
+requests
 sentry-sdk
+types-requests
 whitenoise
 youtube-dl
