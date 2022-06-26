@@ -155,14 +155,9 @@ YOUTUBE_RATE_LIMIT = env('YOUTUBE_RATE_LIMIT', default=None)
 
 # MoviePy settings
 # https://zulko.github.io/moviepy
-VIDEO_FINAL_OUTPUT_FORMAT = 'webm'
-VIDEO_FINAL_ENCODER_SETTINGS = {
-    'threads': 1,
-}
 VIDEO_TEMP_OUTPUT_FORMAT = 'mp4'
 VIDEO_TEMP_ENCODER_SETTINGS = {
     'preset': 'veryfast',
     # 'codec': 'libx264',
     # 'bitrate': '700K',
-    'threads': 1,
 }

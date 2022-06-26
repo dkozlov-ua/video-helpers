@@ -8,7 +8,8 @@ from celery.canvas import Signature, chain, chord
 from django.conf import settings
 from telebot.types import Message
 
-from moviemaker.tasks import download_video_from_youtube, transform_video, concatenate_videos, download_video_from_link
+from moviemaker.tasks import download_video_from_youtube, transform_video, concatenate_videos, \
+    download_video_from_link, encode_video
 from moviemaker.utils import video_id_from_url
 from telegram.models import Chat, TaskMessage
 from telegram.tasks import reply_with_video, reply_with_error_msg, update_task_progress, TaskProgressEvent
@@ -96,6 +97,7 @@ def _cmd_video_from_attachment(message: Message) -> None:
         download_tasks_total=1,
         transform_tasks_total=1,
         concatenate_tasks_total=0,
+        encode_tasks_total=1,
     )
     task_message.save()
     update_task_progress(None, task_message_id)
@@ -118,6 +120,12 @@ def _cmd_video_from_attachment(message: Message) -> None:
             ),
             link=update_task_progress.si(
                 event=TaskProgressEvent.TRANSFORM_TASK_FINISHED,
+                task_message_pk=task_message_id,
+            ),
+        ),
+        encode_video.signature(
+            link=update_task_progress.si(
+                event=TaskProgressEvent.ENCODE_TASK_FINISHED,
                 task_message_pk=task_message_id,
             ),
         ),
@@ -181,6 +189,7 @@ def _cmd_video_from_links(message: Message) -> None:
         download_tasks_total=len(prepare_video_tasks),
         transform_tasks_total=len(prepare_video_tasks),
         concatenate_tasks_total=1,
+        encode_tasks_total=1,
     )
     task_message.save()
     update_task_progress(None, task_message_id)
@@ -191,6 +200,12 @@ def _cmd_video_from_links(message: Message) -> None:
             concatenate_videos.signature(
                 link=update_task_progress.si(
                     event=TaskProgressEvent.CONCATENATE_TASK_FINISHED,
+                    task_message_pk=task_message_id,
+                ),
+            ),
+            encode_video.signature(
+                link=update_task_progress.si(
+                    event=TaskProgressEvent.ENCODE_TASK_FINISHED,
                     task_message_pk=task_message_id,
                 ),
             ),

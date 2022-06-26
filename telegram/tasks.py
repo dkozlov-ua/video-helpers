@@ -67,6 +67,7 @@ class TaskProgressEvent(Enum):
     DOWNLOAD_TASK_FINISHED = 1
     TRANSFORM_TASK_FINISHED = 2
     CONCATENATE_TASK_FINISHED = 3
+    ENCODE_TASK_FINISHED = 4
 
 
 @shared_task(acks_late=True, ignore_result=True)
@@ -78,6 +79,8 @@ def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UU
         TaskMessage.objects.filter(pk=task_message.pk).update(transform_tasks_done=F('transform_tasks_done') + 1)
     elif event is TaskProgressEvent.CONCATENATE_TASK_FINISHED:
         TaskMessage.objects.filter(pk=task_message.pk).update(concatenate_tasks_done=F('concatenate_tasks_done') + 1)
+    elif event is TaskProgressEvent.ENCODE_TASK_FINISHED:
+        TaskMessage.objects.filter(pk=task_message.pk).update(encode_tasks_done=F('encode_tasks_done') + 1)
     elif event is None:
         pass
     else:
@@ -90,6 +93,7 @@ def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UU
         f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}",
         f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}",
         f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}",
+        f"Encoded: {task_message.encode_tasks_done}/{task_message.encode_tasks_total}",
     ))
     try:
         bot.edit_message_text(

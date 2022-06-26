@@ -37,5 +37,7 @@ class TaskMessage(models.Model):
     transform_tasks_done = models.IntegerField(default=0)
     concatenate_tasks_total = models.IntegerField(default=0)
     concatenate_tasks_done = models.IntegerField(default=0)
+    encode_tasks_total = models.IntegerField(default=0)
+    encode_tasks_done = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
