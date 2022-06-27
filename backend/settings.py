@@ -140,6 +140,11 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
 }
+CELERY_ROUTES = {
+    'video_helpers.tasks.transform_video': {'queue': 'video_encoding'},
+    'video_helpers.tasks.concatenate_videos': {'queue': 'video_encoding'},
+    'video_helpers.tasks.encode_video': {'queue': 'video_encoding'},
+}
 
 # Telegram settings
 TELEGRAM_BOT_ENABLED = env.bool('TELEGRAM_BOT_ENABLED', default=False)

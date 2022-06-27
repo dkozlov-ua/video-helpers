@@ -12,7 +12,7 @@ volumes:
 
 services:
   backend:
-    image: moviemaker:latest
+    image: video_helpers:latest
     entrypoint: ./entrypoint.sh
     command:
       - --access-logfile=-
@@ -48,13 +48,47 @@ services:
       options:
         max-size: 1m
 
-  celery_worker:
-    image: moviemaker:latest
+  celery_worker_default:
+    image: video_helpers:latest
     entrypoint: celery --app=backend
     command:
       - worker
       - --loglevel=info
       - --concurrency=3
+      - --queues=celery
+    environment:
+      DEBUG: ${DEBUG:?err}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:?err}
+      SECRET_KEY: ${SECRET_KEY:?err}
+      MEDIA_ROOT: /media
+      TELEGRAM_BOT_ENABLED:
+      TELEGRAM_BOT_TOKEN:
+      SENTRY_DSN:
+      SENTRY_ENVIRONMENT:
+      DATABASE_URL: psql://postgres:postgres@postgres:5432/postgres
+      CELERY_BROKER_URL: amqp://user:password@rabbitmq:5672/
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      C_FORCE_ROOT: x
+    volumes:
+      - ./media:/media
+    depends_on:
+      - backend
+      - redis
+    networks:
+      - default_net
+    logging:
+      options:
+        max-size: 1m
+
+  celery_worker_video_encoding:
+    image: video_helpers:latest
+    entrypoint: celery --app=backend
+    command:
+      - worker
+      - --loglevel=info
+      - --concurrency=1
+      - --queues=video_encoding
     environment:
       DEBUG: ${DEBUG:?err}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
@@ -81,7 +115,7 @@ services:
         max-size: 1m
 
   celery_beat:
-    image: moviemaker:latest
+    image: video_helpers:latest
     entrypoint: celery --app=backend
     command:
       - beat
@@ -114,7 +148,7 @@ services:
         max-size: 1m
 
   telegram_bot:
-    image: moviemaker:latest
+    image: video_helpers:latest
     entrypoint: python -m telegram
     command:
       - --loglevel=info
