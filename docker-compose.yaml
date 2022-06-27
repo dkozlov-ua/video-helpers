@@ -8,7 +8,6 @@ volumes:
   postgres_data: { }
   redis_data: { }
   rabbitmq_data: { }
-  flower_data: { }
 
 services:
   backend:
@@ -40,6 +39,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - rabbitmq
     ports:
       - "8080:8000"
     networks:
@@ -56,6 +56,7 @@ services:
       - --loglevel=info
       - --concurrency=3
       - --queues=celery
+      - --purge
     environment:
       DEBUG: ${DEBUG:?err}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
@@ -75,20 +76,22 @@ services:
     depends_on:
       - backend
       - redis
+      - rabbitmq
     networks:
       - default_net
     logging:
       options:
         max-size: 1m
 
-  celery_worker_video_encoding:
+  celery_worker_video:
     image: video_helpers:latest
     entrypoint: celery --app=backend
     command:
       - worker
       - --loglevel=info
-      - --concurrency=1
-      - --queues=video_encoding
+      - --concurrency=3
+      - --queues=video_download,video_processing
+      - --purge
     environment:
       DEBUG: ${DEBUG:?err}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?err}
@@ -108,6 +111,7 @@ services:
     depends_on:
       - backend
       - redis
+      - rabbitmq
     networks:
       - default_net
     logging:
@@ -141,6 +145,7 @@ services:
       - backend
       - postgres
       - redis
+      - rabbitmq
     networks:
       - default_net
     logging:
@@ -169,6 +174,9 @@ services:
       - ./media:/media
     depends_on:
       - backend
+      - postgres
+      - redis
+      - rabbitmq
     networks:
       - default_net
     logging:

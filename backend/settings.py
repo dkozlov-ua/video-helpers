@@ -140,10 +140,13 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 3600.0,
     },
 }
-CELERY_ROUTES = {
-    'video_helpers.tasks.transform_video': {'queue': 'video_encoding'},
-    'video_helpers.tasks.concatenate_videos': {'queue': 'video_encoding'},
-    'video_helpers.tasks.encode_video': {'queue': 'video_encoding'},
+CELERY_TASK_ROUTES = {
+    'video_helpers.tasks.download_video_from_youtube': {'queue': 'video_download'},
+    'video_helpers.tasks.download_video_from_link': {'queue': 'video_download'},
+
+    'video_helpers.tasks.transform_video': {'queue': 'video_processing'},
+    'video_helpers.tasks.concatenate_videos': {'queue': 'video_processing'},
+    'video_helpers.tasks.encode_video': {'queue': 'video_processing'},
 }
 
 # Telegram settings
