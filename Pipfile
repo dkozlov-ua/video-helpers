@@ -1,0 +1,31 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+celery = {extras = ["redis"], version = "*"}
+click = "*"
+django = ">=4.0"
+django-grappelli = "*"
+django-celery-beat = "*"
+django-environ = "*"
+gunicorn = "*"
+moviepy = "*"
+psycopg2-binary = "*"
+pytelegrambotapi = "*"
+pytimeparse = "*"
+requests = "*"
+sentry-sdk = "*"
+whitenoise = "*"
+youtube-dl = "*"
+
+[dev-packages]
+django-stubs = "*"
+mypy = "*"
+pylint = "*"
+pylint-django = "*"
+types-requests = "*"
+
+[requires]
+python_version = "3.10"

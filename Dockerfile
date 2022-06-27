@@ -7,8 +7,10 @@ RUN    apt-get update \
 WORKDIR /usr/src/app
 
 # install python modules
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install --no-cache-dir -U -r /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -U pipenv
+COPY Pipfile.lock .
+RUN    pipenv requirements > /tmp/requirements.txt \
+    && pip3 install --no-cache-dir -U -r /tmp/requirements.txt
 
 # copy application files
 COPY . .
