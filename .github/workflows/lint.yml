@@ -16,7 +16,7 @@ jobs:
           python-version: '3.10'
       - name: Install required Python packages
         run: |
-          pip install --update pipenv
+          pip install -U pipenv
           pipenv requirements.txt --dev > "${RUNNER_TEMP}/requirements.txt"
           pip install -r "${RUNNER_TEMP}/requirements.txt"
       - name: Run pylint
