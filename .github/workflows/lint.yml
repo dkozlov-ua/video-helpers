@@ -17,7 +17,7 @@ jobs:
       - name: Install required Python packages
         run: |
           pip install -U pipenv
-          pipenv requirements.txt --dev > "${RUNNER_TEMP}/requirements.txt"
+          pipenv requirements --dev > "${RUNNER_TEMP}/requirements.txt"
           pip install -r "${RUNNER_TEMP}/requirements.txt"
       - name: Run pylint
         run: pylint --django-settings-module=backend.settings --verbose -j0 backend moviemaker telegram
