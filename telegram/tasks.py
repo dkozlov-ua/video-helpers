@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, NewType
+from typing import Optional, NewType, List
 from uuid import UUID
 
 import telebot
@@ -87,14 +87,27 @@ def update_task_progress(event: Optional[TaskProgressEvent], task_message_pk: UU
         raise ValueError(f"Unknown event: TaskProgressEvent = {event}")
 
     task_message.refresh_from_db()
-    msg_text = '\n'.join((
+    msg_lines: List[str] = [
         "*Processing videos*",
         "",
-        f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}",
-        f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}",
-        f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}",
-        f"Encoded: {task_message.encode_tasks_done}/{task_message.encode_tasks_total}",
-    ))
+    ]
+    if task_message.download_tasks_total:
+        msg_lines.append(
+            f"Downloaded: {task_message.download_tasks_done}/{task_message.download_tasks_total}"
+        )
+    if task_message.transform_tasks_total:
+        msg_lines.append(
+            f"Transformed: {task_message.transform_tasks_done}/{task_message.transform_tasks_total}"
+        )
+    if task_message.concatenate_tasks_total:
+        msg_lines.append(
+            f"Concatenated: {task_message.concatenate_tasks_done}/{task_message.concatenate_tasks_total}"
+        )
+    if task_message.encode_tasks_total:
+        msg_lines.append(
+            f"Encoded: {task_message.encode_tasks_done}/{task_message.encode_tasks_total}"
+        )
+    msg_text = '\n'.join(msg_lines)
     try:
         bot.edit_message_text(
             chat_id=task_message.chat.id,
