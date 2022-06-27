@@ -8,11 +8,11 @@ from celery.canvas import Signature, chain, chord
 from django.conf import settings
 from telebot.types import Message
 
-from moviemaker.tasks import download_video_from_youtube, transform_video, concatenate_videos, \
-    download_video_from_link, encode_video
-from moviemaker.utils import video_id_from_url
 from telegram.models import Chat, TaskMessage
 from telegram.tasks import reply_with_video, reply_with_error_msg, update_task_progress, TaskProgressEvent
+from video_helpers.tasks import download_video_from_youtube, transform_video, concatenate_videos, \
+    download_video_from_link, encode_video
+from video_helpers.utils import video_id_from_url
 
 bot = telebot.TeleBot(
     token=settings.TELEGRAM_BOT_TOKEN,

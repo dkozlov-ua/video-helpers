@@ -63,7 +63,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_beat',
-    'moviemaker',
+    'video_helpers',
     'telegram',
 ]
 
@@ -136,7 +136,7 @@ CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle']
 CELERY_BEAT_SCHEDULE = {
     'cleanup-old-videos': {
-        'task': 'moviemaker.tasks.cleanup_old_videos',
+        'task': 'video_helpers.tasks.cleanup_old_videos',
         'schedule': 3600.0,
     },
 }

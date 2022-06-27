@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class MoviemakerConfig(AppConfig):
+class VideoHelpersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'moviemaker'
+    name = 'video_helpers'

@@ -8,8 +8,8 @@ from django.conf import settings
 from django.db.models import F
 from telebot.apihelper import ApiTelegramException
 
-from moviemaker.models import VideoFile
 from telegram.models import TaskMessage
+from video_helpers.models import VideoFile
 
 bot = telebot.TeleBot(
     token=settings.TELEGRAM_BOT_TOKEN,

@@ -14,8 +14,8 @@ from django.db import transaction
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 from youtube_dl.utils import DownloadError
 
-from moviemaker.models import VideoFile
-from moviemaker.utils import hashed
+from video_helpers.models import VideoFile
+from video_helpers.utils import hashed
 
 logger = get_task_logger(__name__)
 

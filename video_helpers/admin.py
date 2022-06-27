@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from moviemaker import models
+from video_helpers import models
 
 
 @admin.register(models.VideoFile)

@@ -13,7 +13,7 @@ volumes:
 services:
   backend:
     image: moviemaker:latest
-    entrypoint: ./api_entrypoint.sh
+    entrypoint: ./entrypoint.sh
     command:
       - --access-logfile=-
       - --log-level=info
@@ -35,7 +35,7 @@ services:
     volumes:
       - ./media:/media
       - ./backend/migrations:/usr/src/app/backend/migrations
-      - ./moviemaker/migrations:/usr/src/app/moviemaker/migrations
+      - ./video_helpers/migrations:/usr/src/app/video_helpers/migrations
       - ./telegram/migrations:/usr/src/app/telegram/migrations
     depends_on:
       - postgres
